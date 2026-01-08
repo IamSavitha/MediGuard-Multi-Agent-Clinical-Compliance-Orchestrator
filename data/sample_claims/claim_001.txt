@@ -1,0 +1,17 @@
+MEDICAL CLAIM
+
+Patient Information:
+Name: John Doe
+DOB: 01/15/1980
+Patient ID: PAT-12345
+Insurance: Standard Health Insurance Plan (POL-001)
+
+Treatment Details:
+Date of Service: 03/15/2024
+Provider: City Medical Center
+Treatment: MRI scan of brain
+Diagnosis: Headache evaluation
+
+Billing:
+Total Amount: $1,500.00
+Provider NPI: 1234567890

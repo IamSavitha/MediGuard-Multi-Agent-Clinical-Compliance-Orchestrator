@@ -1,0 +1,20 @@
+MEDICAL CLAIM
+
+Patient Information:
+Name: Jane Smith
+DOB: 05/22/1975
+Patient ID: PAT-67890
+SSN: 123-45-6789
+Phone: 555-123-4567
+Email: jane.smith@email.com
+Insurance: Premium Health Insurance Plan (POL-002)
+
+Treatment Details:
+Date of Service: 03/20/2024
+Provider: Regional Hospital
+Treatment: CT scan of chest
+Diagnosis: Follow-up for lung condition
+
+Billing:
+Total Amount: $2,200.00
+Provider NPI: 0987654321

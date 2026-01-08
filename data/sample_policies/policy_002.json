@@ -1,0 +1,34 @@
+{
+  "policy_id": "POL-002",
+  "policy_name": "Premium Health Insurance Plan",
+  "coverage_rules": [
+    {
+      "treatment_type": "MRI",
+      "coverage_percentage": 90,
+      "requires_prior_authorization": false,
+      "copay": 30
+    },
+    {
+      "treatment_type": "CT scan",
+      "coverage_percentage": 90,
+      "requires_prior_authorization": false,
+      "copay": 30
+    },
+    {
+      "treatment_type": "surgery",
+      "coverage_percentage": 85,
+      "requires_prior_authorization": true,
+      "copay": 100
+    },
+    {
+      "treatment_type": "therapy",
+      "coverage_percentage": 80,
+      "requires_prior_authorization": false,
+      "copay": 40
+    }
+  ],
+  "deductible": 500,
+  "annual_maximum": 100000,
+  "effective_date": "2024-01-01",
+  "expiration_date": "2024-12-31"
+}

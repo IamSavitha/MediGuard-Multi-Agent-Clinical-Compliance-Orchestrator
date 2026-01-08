@@ -1,0 +1,40 @@
+{
+  "policy_id": "POL-001",
+  "policy_name": "Standard Health Insurance Plan",
+  "coverage_rules": [
+    {
+      "treatment_type": "MRI",
+      "coverage_percentage": 80,
+      "requires_prior_authorization": true,
+      "copay": 50
+    },
+    {
+      "treatment_type": "CT scan",
+      "coverage_percentage": 80,
+      "requires_prior_authorization": false,
+      "copay": 50
+    },
+    {
+      "treatment_type": "X-ray",
+      "coverage_percentage": 90,
+      "requires_prior_authorization": false,
+      "copay": 25
+    },
+    {
+      "treatment_type": "surgery",
+      "coverage_percentage": 70,
+      "requires_prior_authorization": true,
+      "copay": 200
+    },
+    {
+      "treatment_type": "consultation",
+      "coverage_percentage": 100,
+      "requires_prior_authorization": false,
+      "copay": 0
+    }
+  ],
+  "deductible": 1000,
+  "annual_maximum": 50000,
+  "effective_date": "2024-01-01",
+  "expiration_date": "2024-12-31"
+}
