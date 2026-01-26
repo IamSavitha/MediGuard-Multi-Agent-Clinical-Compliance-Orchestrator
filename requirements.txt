@@ -2,11 +2,12 @@
 openai>=1.12.0
 langchain>=0.1.0
 langchain-openai>=0.0.5
+langchain-ollama>=0.1.0
 langgraph>=0.0.20
 langchain-community>=0.0.20
 
 # Vector Database
-pinecone-client>=3.0.0
+pinecone>=5.0.0
 pymilvus>=2.3.0
 
 # Embeddings
@@ -14,7 +15,6 @@ sentence-transformers>=2.3.0
 
 # Guardrails and Safety
 guardrails-ai>=0.4.0
-nemo-guardrails>=0.5.0
 
 # Data Processing
 pydantic>=2.5.0
@@ -25,6 +25,7 @@ pyyaml>=6.0.1
 tqdm>=4.66.0
 rich>=13.7.0
 click>=8.1.7
+streamlit>=1.28.0
 
 # Testing
 pytest>=7.4.0
