@@ -42,9 +42,10 @@ def check_imports():
     
     try:
         import pinecone
-        print("  ✓ pinecone-client (optional)")
-    except ImportError:
-        print("  ⚠ pinecone-client not installed (optional, will use in-memory storage)")
+        print("  ✓ pinecone (optional)")
+    except Exception as e:
+        # Pinecone-client raises an exception if installed, so catch all exceptions
+        print("  ⚠ pinecone not installed (optional, will use in-memory storage)")
     
     return True
 

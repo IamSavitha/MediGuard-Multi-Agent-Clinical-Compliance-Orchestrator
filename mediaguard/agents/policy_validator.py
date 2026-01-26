@@ -6,11 +6,11 @@ and validate if treatments are covered.
 """
 
 from typing import Dict, Any, List, Optional
-from langchain_openai import ChatOpenAI
-from langchain.prompts import ChatPromptTemplate
-from langchain.schema import HumanMessage, SystemMessage
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.messages import HumanMessage, SystemMessage
 from mediaguard.rag.vector_store import VectorStore
 from mediaguard.tools.claim_tools import calculate_copay, check_deductible
+from mediaguard.utils.llm_factory import get_llm
 import json
 import os
 from dotenv import load_dotenv
@@ -25,12 +25,12 @@ class PolicyValidator:
         """Initialize the Policy Validator Agent.
         
         Args:
-            model_name: OpenAI model to use (defaults to gpt-4o)
+            model_name: Model name to use (defaults from env vars)
             vector_store: Vector store instance for policy retrieval
         """
-        self.model_name = model_name or os.getenv("OPENAI_MODEL", "gpt-4o")
-        self.llm = ChatOpenAI(
-            model=self.model_name,
+        self.model_name = model_name
+        self.llm = get_llm(
+            model_name=model_name,
             temperature=0.2,  # Low temperature for accurate policy interpretation
         )
         self.vector_store = vector_store or VectorStore()

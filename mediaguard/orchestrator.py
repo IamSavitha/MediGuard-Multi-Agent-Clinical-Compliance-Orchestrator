@@ -4,7 +4,7 @@ MediGuard Orchestrator
 Main orchestration system using LangGraph to coordinate all agents.
 """
 
-from typing import Dict, Any, Optional, TypedDict, Annotated
+from typing import Dict, Any, Optional, TypedDict, Annotated, List
 from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
@@ -12,19 +12,31 @@ from mediaguard.agents.triage_agent import TriageAgent
 from mediaguard.agents.policy_validator import PolicyValidator
 from mediaguard.agents.compliance_auditor import ComplianceAuditor
 from mediaguard.rag.vector_store import VectorStore
+from mediaguard.pipeline.router import PipelineRouter, PipelineType
+from mediaguard.pipeline.handlers import (
+    LowRiskPipelineHandler,
+    HighRiskPipelineHandler,
+    CriticalPHIPipelineHandler
+)
+from mediaguard.pipeline.human_loop import HumanInTheLoopQueue
+from mediaguard.pipeline.quarantine import QuarantineManager
 import json
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from tqdm import tqdm
 
 
 class MediGuardState(TypedDict):
     """State structure for the MediGuard workflow."""
     document_text: str
+    document_id: Optional[str]
     document_type: Optional[str]
     classification_result: Optional[Dict[str, Any]]
     validation_result: Optional[Dict[str, Any]]
     audit_result: Optional[Dict[str, Any]]
     patient_metadata: Optional[Dict[str, Any]]
     final_output: Optional[Dict[str, Any]]
+    routing_decision: Optional[Dict[str, Any]]
     errors: Annotated[list[str], add_messages]
     messages: Annotated[list, add_messages]
 
@@ -36,7 +48,8 @@ class MediGuardOrchestrator:
         self,
         model_name: str = None,
         vector_store: VectorStore = None,
-        enable_guardrails: bool = True
+        enable_guardrails: bool = True,
+        enable_pipeline_routing: bool = True
     ):
         """Initialize the MediGuard Orchestrator.
         
@@ -44,10 +57,12 @@ class MediGuardOrchestrator:
             model_name: OpenAI model to use
             vector_store: Vector store instance for RAG
             enable_guardrails: Whether to enable compliance auditing
+            enable_pipeline_routing: Whether to enable pipeline routing
         """
         self.model_name = model_name
         self.vector_store = vector_store
         self.enable_guardrails = enable_guardrails
+        self.enable_pipeline_routing = enable_pipeline_routing
         
         # Initialize agents
         self.triage_agent = TriageAgent(model_name=model_name)
@@ -56,6 +71,15 @@ class MediGuardOrchestrator:
             vector_store=vector_store or VectorStore()
         )
         self.compliance_auditor = ComplianceAuditor() if enable_guardrails else None
+        
+        # Initialize pipeline components
+        if enable_pipeline_routing:
+            self.pipeline_router = PipelineRouter()
+            self.quarantine_manager = QuarantineManager()
+            self.human_loop_queue = HumanInTheLoopQueue()
+            self.low_risk_handler = LowRiskPipelineHandler(self)
+            self.high_risk_handler = HighRiskPipelineHandler(self)
+            self.critical_phi_handler = CriticalPHIPipelineHandler(self)
         
         # Build the workflow graph
         self.workflow = self._build_workflow()
@@ -75,15 +99,26 @@ class MediGuardOrchestrator:
         if self.enable_guardrails:
             workflow.add_node("audit", self._audit_node)
         
+        if self.enable_pipeline_routing:
+            workflow.add_node("route", self._route_node)
+        
         # Add edges
         workflow.set_entry_point("triage")
         workflow.add_edge("triage", "validate")
         
         if self.enable_guardrails:
             workflow.add_edge("validate", "audit")
-            workflow.add_edge("audit", END)
+            if self.enable_pipeline_routing:
+                workflow.add_edge("audit", "route")
+                workflow.add_edge("route", END)
+            else:
+                workflow.add_edge("audit", END)
         else:
-            workflow.add_edge("validate", END)
+            if self.enable_pipeline_routing:
+                workflow.add_edge("validate", "route")
+                workflow.add_edge("route", END)
+            else:
+                workflow.add_edge("validate", END)
         
         return workflow.compile()
     
@@ -180,9 +215,13 @@ class MediGuardOrchestrator:
             # Build output text for PHI checking
             output_text = self._build_output_text(state)
             
+            # Combine original document text with output text for comprehensive PHI checking
+            # This ensures we catch PHI in both the original input and the processed output
+            text_to_check = f"{document_text}\n\n{output_text}"
+            
             # Perform audit
             audit_result = self.compliance_auditor.audit(
-                output_text=output_text,
+                output_text=text_to_check,
                 decision=validation_result,
                 patient_metadata=patient_metadata,
                 context=f"Document type: {state.get('document_type')}"
@@ -204,6 +243,61 @@ class MediGuardOrchestrator:
                 "is_compliant": False,
                 "error": str(e)
             }
+            return state
+    
+    def _route_node(self, state: MediGuardState) -> MediGuardState:
+        """Route node: Determine pipeline and route document.
+        
+        Args:
+            state: Current workflow state
+            
+        Returns:
+            Updated state with routing decision
+        """
+        if not self.enable_pipeline_routing:
+            return state
+        
+        try:
+            document_id = state.get("document_id", f"doc_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+            document_text = state.get("document_text", "")
+            audit_result = state.get("audit_result", {})
+            classification_result = state.get("classification_result")
+            validation_result = state.get("validation_result")
+            errors = state.get("errors", [])
+            final_output = state.get("final_output")
+            
+            # Route document
+            routing_decision = self.pipeline_router.route(
+                document_id=document_id,
+                document_text=document_text,
+                audit_result=audit_result,
+                classification_result=classification_result,
+                validation_result=validation_result,
+                errors=errors,
+                full_result=final_output
+            )
+            
+            state["routing_decision"] = routing_decision
+            
+            # Add routing info to final output
+            if final_output:
+                final_output["routing"] = routing_decision
+            
+            # If requires human review, add to queue
+            if routing_decision.get("requires_human_review", False):
+                priority = "critical" if routing_decision["risk_assessment"]["risk_level"] == "CRITICAL" else "high"
+                self.human_loop_queue.add_to_queue(
+                    document_id=document_id,
+                    document_text=document_text,
+                    reason=routing_decision.get("quarantine_reason") or "High risk document",
+                    processing_result=final_output or {},
+                    priority=priority
+                )
+            
+            return state
+            
+        except Exception as e:
+            state["errors"] = state.get("errors", []) + [f"Routing error: {str(e)}"]
             return state
     
     def _extract_treatment_info(
@@ -263,13 +357,13 @@ class MediGuardOrchestrator:
         parts = []
         
         if state.get("classification_result"):
-            parts.append(f"Classification: {state['classification_result']}")
+            parts.append(f"Classification: {json.dumps(state['classification_result'], indent=2)}")
         
         if state.get("validation_result"):
-            parts.append(f"Validation: {state['validation_result']}")
+            parts.append(f"Validation: {json.dumps(state['validation_result'], indent=2)}")
         
         if state.get("patient_metadata"):
-            parts.append(f"Patient Info: {state['patient_metadata']}")
+            parts.append(f"Patient Info: {json.dumps(state['patient_metadata'], indent=2)}")
         
         return "\n".join(parts)
     
@@ -309,7 +403,8 @@ class MediGuardOrchestrator:
         self,
         document_text: str,
         document_type: Optional[str] = None,
-        patient_metadata: Optional[Dict[str, Any]] = None
+        patient_metadata: Optional[Dict[str, Any]] = None,
+        document_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """Process a document through the full workflow.
         
@@ -317,6 +412,7 @@ class MediGuardOrchestrator:
             document_text: Text content of the document
             document_type: Optional pre-classified document type
             patient_metadata: Optional patient metadata
+            document_id: Optional document identifier
             
         Returns:
             Final output dictionary with all results
@@ -324,12 +420,14 @@ class MediGuardOrchestrator:
         # Initialize state
         initial_state: MediGuardState = {
             "document_text": document_text,
+            "document_id": document_id or f"doc_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}",
             "document_type": document_type,
             "classification_result": None,
             "validation_result": None,
             "audit_result": None,
             "patient_metadata": patient_metadata or {},
             "final_output": None,
+            "routing_decision": None,
             "errors": [],
             "messages": []
         }
@@ -364,3 +462,95 @@ class MediGuardOrchestrator:
             document_type="CLAIM",
             patient_metadata=patient_metadata
         )
+    
+    def process_batch(
+        self,
+        documents: List[Dict[str, Any]],
+        max_workers: int = 4,
+        show_progress: bool = True
+    ) -> Dict[str, Any]:
+        """Process multiple documents in batch.
+        
+        Args:
+            documents: List of document dictionaries, each containing:
+                - 'id' (str): Unique identifier for the document
+                - 'text' (str): Document text content
+                - 'document_type' (str, optional): Pre-classified document type
+                - 'patient_metadata' (dict, optional): Patient information
+            max_workers: Maximum number of parallel workers (default: 4)
+            show_progress: Whether to show progress bar (default: True)
+            
+        Returns:
+            Dictionary containing:
+                - 'results': List of processing results (one per document)
+                - 'summary': Summary statistics
+                - 'errors': List of documents that failed processing
+        """
+        results = []
+        errors = []
+        total = len(documents)
+        
+        def process_single(doc: Dict[str, Any]) -> Dict[str, Any]:
+            """Process a single document."""
+            doc_id = doc.get('id', f"doc_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}")
+            try:
+                result = self.process_document(
+                    document_text=doc.get('text', ''),
+                    document_type=doc.get('document_type'),
+                    patient_metadata=doc.get('patient_metadata'),
+                    document_id=doc_id
+                )
+                result['document_id'] = doc_id
+                return result
+            except Exception as e:
+                return {
+                    'document_id': doc_id,
+                    'status': 'error',
+                    'error': str(e),
+                    'timestamp': datetime.now().isoformat()
+                }
+        
+        # Process documents in parallel
+        if show_progress:
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                future_to_doc = {
+                    executor.submit(process_single, doc): doc 
+                    for doc in documents
+                }
+                
+                with tqdm(total=total, desc="Processing documents") as pbar:
+                    for future in as_completed(future_to_doc):
+                        result = future.result()
+                        if result.get('status') == 'error':
+                            errors.append(result)
+                        else:
+                            results.append(result)
+                        pbar.update(1)
+        else:
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                future_to_doc = {
+                    executor.submit(process_single, doc): doc 
+                    for doc in documents
+                }
+                
+                for future in as_completed(future_to_doc):
+                    result = future.result()
+                    if result.get('status') == 'error':
+                        errors.append(result)
+                    else:
+                        results.append(result)
+        
+        # Calculate summary statistics
+        summary = {
+            'total': total,
+            'successful': len(results),
+            'failed': len(errors),
+            'success_rate': len(results) / total if total > 0 else 0,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        return {
+            'results': results,
+            'summary': summary,
+            'errors': errors
+        }

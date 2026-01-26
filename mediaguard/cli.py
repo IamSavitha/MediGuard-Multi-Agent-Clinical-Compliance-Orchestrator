@@ -132,6 +132,111 @@ def search_policies(query, top_k):
         console.print(f"[red]Error:[/red] {e}")
 
 
+@cli.command()
+@click.option("--input", "-i", type=click.Path(exists=True), required=True, help="Input JSON file or directory containing documents")
+@click.option("--output", "-o", type=click.Path(), required=True, help="Output JSON file path")
+@click.option("--workers", "-w", default=4, help="Number of parallel workers (default: 4)")
+@click.option("--format", "-f", type=click.Choice(["json", "directory"]), default="json", help="Input format: 'json' for JSON file, 'directory' for directory of text files")
+def batch_process(input, output, workers, format):
+    """Process multiple documents in batch."""
+    console.print(f"[bold blue]MediGuard[/bold blue] - Batch Processing")
+    console.print(f"[yellow]Input:[/yellow] {input}")
+    console.print(f"[yellow]Output:[/yellow] {output}")
+    console.print(f"[yellow]Workers:[/yellow] {workers}")
+    
+    # Initialize orchestrator
+    try:
+        orchestrator = MediGuardOrchestrator()
+    except Exception as e:
+        console.print(f"[red]Error initializing orchestrator:[/red] {e}")
+        return
+    
+    # Load documents
+    documents = []
+    
+    if format == "json":
+        # Load from JSON file
+        try:
+            with open(input, "r") as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    documents = data
+                elif isinstance(data, dict) and "documents" in data:
+                    documents = data["documents"]
+                else:
+                    console.print("[red]Error:[/red] JSON file must contain a list of documents or a dict with 'documents' key")
+                    return
+        except json.JSONDecodeError as e:
+            console.print(f"[red]Error parsing JSON:[/red] {e}")
+            return
+        except Exception as e:
+            console.print(f"[red]Error reading file:[/red] {e}")
+            return
+    else:
+        # Load from directory
+        from pathlib import Path
+        input_path = Path(input)
+        if not input_path.is_dir():
+            console.print(f"[red]Error:[/red] {input} is not a directory")
+            return
+        
+        for file_path in input_path.glob("*.txt"):
+            try:
+                with open(file_path, "r") as f:
+                    doc_text = f.read()
+                    documents.append({
+                        "id": file_path.stem,
+                        "text": doc_text
+                    })
+            except Exception as e:
+                console.print(f"[yellow]Warning:[/yellow] Failed to read {file_path}: {e}")
+    
+    if not documents:
+        console.print("[red]Error:[/red] No documents found to process")
+        return
+    
+    console.print(f"[green]Loaded {len(documents)} documents[/green]")
+    
+    # Process batch
+    console.print("[yellow]Processing...[/yellow]")
+    try:
+        batch_result = orchestrator.process_batch(
+            documents=documents,
+            max_workers=workers,
+            show_progress=True
+        )
+        
+        # Save results
+        with open(output, "w") as f:
+            json.dump(batch_result, f, indent=2)
+        
+        # Display summary
+        summary = batch_result["summary"]
+        console.print("\n[bold green]Batch Processing Complete![/bold green]")
+        console.print(Panel(
+            f"[bold]Total:[/bold] {summary['total']}\n"
+            f"[bold]Successful:[/bold] {summary['successful']}\n"
+            f"[bold]Failed:[/bold] {summary['failed']}\n"
+            f"[bold]Success Rate:[/bold] {summary['success_rate']:.2%}",
+            title="Summary",
+            border_style="green"
+        ))
+        
+        if batch_result["errors"]:
+            console.print(f"[yellow]Warning:[/yellow] {len(batch_result['errors'])} documents failed processing")
+            for error in batch_result["errors"][:5]:  # Show first 5 errors
+                console.print(f"  - {error.get('document_id', 'unknown')}: {error.get('error', 'Unknown error')}")
+            if len(batch_result["errors"]) > 5:
+                console.print(f"  ... and {len(batch_result['errors']) - 5} more")
+        
+        console.print(f"[green]Results saved to:[/green] {output}")
+        
+    except Exception as e:
+        console.print(f"[red]Error during batch processing:[/red] {e}")
+        import traceback
+        console.print(traceback.format_exc())
+
+
 def _display_results_pretty(result: dict):
     """Display results in a pretty format."""
     # Classification
@@ -148,10 +253,12 @@ def _display_results_pretty(result: dict):
     # Validation
     if "validation" in result and not result["validation"].get("skipped"):
         validation = result["validation"]
+        copay_amount = validation.get('copay_amount')
+        copay_str = f"${copay_amount:.2f}" if copay_amount is not None else "N/A"
         console.print(Panel(
             f"[bold]Covered:[/bold] {'Yes' if validation.get('is_covered') else 'No'}\n"
             f"[bold]Coverage:[/bold] {validation.get('coverage_percentage', 0)}%\n"
-            f"[bold]Co-pay:[/bold] ${validation.get('copay_amount', 0):.2f}\n"
+            f"[bold]Co-pay:[/bold] {copay_str}\n"
             f"[bold]Reasoning:[/bold] {validation.get('reasoning', 'N/A')}",
             title="Policy Validation",
             border_style="green"

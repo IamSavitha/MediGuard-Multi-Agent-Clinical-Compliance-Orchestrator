@@ -24,8 +24,12 @@ class PHIDetector:
     }
     
     # Common name patterns (basic - can be enhanced with NER)
+    # Patterns to detect patient names in various formats
     NAME_PATTERNS = [
-        r"\b(?:Patient|Name|DOB|Date of Birth)[:\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b",
+        # Pattern 1: "Patient: John Doe" or "Name: Jane Smith"
+        r"\b(?:Patient|Name|DOB|Date of Birth)[: \t]+([A-Z][a-z]+(?:[ \t]+[A-Z][a-z]+)+)\b",
+        # Pattern 2: JSON-like format "patient_id": "John Doe" or "patient_name": "Jane Smith"
+        r"(?:patient_id|patient_name|name|patient)[\"\']?\s*[:=]\s*[\"\']?([A-Z][a-z]+(?:[ \t]+[A-Z][a-z]+)+)[\"\']?",
     ]
     
     def __init__(self):
@@ -54,11 +58,26 @@ class PHIDetector:
             "total_detections": 0
         }
         
+        # Map pattern types to detected dict keys
+        # "ssn_no_dash" should map to "ssn"
+        type_mapping = {
+            "ssn": "ssn",
+            "ssn_no_dash": "ssn",  # Fix: map ssn_no_dash to ssn
+            "phone": "phone",
+            "email": "email",
+            "date_of_birth": "date_of_birth",
+            "medical_record_number": "medical_record_number",
+            "account_number": "account_number",
+            "credit_card": "credit_card",
+        }
+        
         # Detect structured PHI
         for phi_type, pattern in self.PATTERNS.items():
             matches = re.finditer(pattern, text, re.IGNORECASE)
             for match in matches:
-                detected[phi_type].append({
+                # Use mapped type for detected dict
+                mapped_type = type_mapping.get(phi_type, phi_type)
+                detected[mapped_type].append({
                     "value": match.group(),
                     "start": match.start(),
                     "end": match.end()
@@ -66,19 +85,32 @@ class PHIDetector:
                 detected["total_detections"] += 1
         
         # Detect names (basic pattern matching)
+        # Track unique names to avoid double counting (normalized for comparison)
+        unique_names = set()
         for pattern in self.NAME_PATTERNS:
             matches = re.finditer(pattern, text, re.IGNORECASE)
             for match in matches:
                 if len(match.groups()) > 0:
-                    name = match.group(1)
-                    # Basic validation: names should be 2+ words, capitalized
-                    if len(name.split()) >= 2 and name[0].isupper():
+                    name = match.group(1).strip()
+                    # Reject names with newlines or other invalid characters
+                    if '\n' in name or '\r' in name:
+                        continue
+                    # Basic validation: names should be 2+ words, capitalized, no newlines
+                    name_parts = name.split()
+                    if len(name_parts) >= 2 and name[0].isupper() and all(part[0].isupper() for part in name_parts if part):
+                        # Normalize name for uniqueness check (case-insensitive, normalized whitespace)
+                        normalized_name = ' '.join(name_parts).strip()
+                        # Always add to detected list for redaction (redact all instances)
                         detected["names"].append({
-                            "value": name,
+                            "value": normalized_name,
                             "start": match.start(1),
                             "end": match.end(1)
                         })
-                        detected["total_detections"] += 1
+                        # Only count unique name values to avoid double counting (case-insensitive)
+                        name_key = normalized_name.lower()
+                        if name_key not in unique_names:
+                            unique_names.add(name_key)
+                            detected["total_detections"] += 1
         
         self.detected_phi = detected
         return detected
@@ -109,6 +141,29 @@ class PHIDetector:
                     "end": item["end"],
                     "original": item["value"]
                 })
+        
+        # Merge overlapping redactions to avoid double redaction
+        if redactions:
+            # Sort by start position
+            redactions.sort(key=lambda x: x["start"])
+            merged = []
+            for redaction in redactions:
+                if not merged:
+                    merged.append(redaction)
+                else:
+                    last = merged[-1]
+                    # Check if overlapping or adjacent
+                    if redaction["start"] <= last["end"]:
+                        # Merge: extend the last redaction to cover both
+                        merged[-1] = {
+                            "type": last["type"],  # Keep first type
+                            "start": last["start"],
+                            "end": max(last["end"], redaction["end"]),
+                            "original": last["original"]  # Keep first original
+                        }
+                    else:
+                        merged.append(redaction)
+            redactions = merged
         
         # Sort by start position (descending) to redact from end to start
         redactions.sort(key=lambda x: x["start"], reverse=True)

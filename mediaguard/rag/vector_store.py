@@ -60,7 +60,7 @@ class VectorStore:
             self.index_name = index_name
             
         except ImportError:
-            raise ImportError("pinecone-client not installed. Install with: pip install pinecone-client")
+            raise ImportError("pinecone not installed. Install with: pip install pinecone")
         except Exception as e:
             print(f"Warning: Could not initialize Pinecone: {e}")
             print("Falling back to in-memory storage for demonstration.")
