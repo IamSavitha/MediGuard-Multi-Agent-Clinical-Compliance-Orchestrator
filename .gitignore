@@ -33,8 +33,14 @@ logs/
 # Data
 data/processed/
 data/vector_store/
+data/human_review/
+data/quarantine/
 *.db
 *.sqlite
+
+# Env backups (never commit)
+.env.backup
+.env.*.backup
 
 # OS
 .DS_Store
