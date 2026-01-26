@@ -1,0 +1,16 @@
+[
+  {
+    "id": "claim_001",
+    "text": "Patient: John Doe\nDOB: 03/15/1980\nTreatment: MRI scan of brain\nCost: $1,500.00\nInsurance: Standard Plan",
+    "document_type": "CLAIM"
+  },
+  {
+    "id": "claim_002",
+    "text": "Patient: Jane Smith\nDOB: 07/22/1975\nTreatment: Annual physical examination\nCost: $250.00\nInsurance: Premium Plan",
+    "document_type": "CLAIM"
+  },
+  {
+    "id": "claim_003",
+    "text": "Patient: Robert Johnson\nDOB: 11/08/1990\nTreatment: Blood test panel\nCost: $180.00\nInsurance: Basic Plan"
+  }
+]
