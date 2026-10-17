@@ -9,15 +9,16 @@ load_dotenv()
 
 
 class VectorStore:
-    """Interface for vector database operations (Pinecone or Milvus)."""
+    """Interface for vector database operations (Pinecone, Milvus or in-memory)."""
     
-    def __init__(self, provider: str = "pinecone"):
+    def __init__(self, provider: str = None):
         """Initialize the vector store.
         
         Args:
-            provider: Vector database provider ("pinecone" or "milvus")
+            provider: "pinecone", "milvus" or "memory" (defaults to VECTOR_DB_PROVIDER, else "pinecone").
+                Pinecone/Milvus fall back to the in-memory store when unavailable.
         """
-        self.provider = provider
+        self.provider = (provider or os.getenv("VECTOR_DB_PROVIDER", "pinecone")).lower()
         self.embedding_generator = EmbeddingGenerator()
         self.index = None
         self._initialize_store()
@@ -28,39 +29,37 @@ class VectorStore:
             self._initialize_pinecone()
         elif self.provider == "milvus":
             self._initialize_milvus()
+        elif self.provider == "memory":
+            self._initialize_memory_store()
         else:
             raise ValueError(f"Unsupported provider: {self.provider}")
     
     def _initialize_pinecone(self):
-        """Initialize Pinecone vector database."""
+        """Initialize Pinecone (serverless, pinecone>=5 client)."""
         try:
-            import pinecone
-            
+            from pinecone import Pinecone, ServerlessSpec
+        except ImportError:
+            print("Warning: pinecone not installed (pip install pinecone). Using in-memory storage.")
+            self._initialize_memory_store()
+            return
+        try:
             api_key = os.getenv("PINECONE_API_KEY")
-            environment = os.getenv("PINECONE_ENVIRONMENT", "us-east-1")
-            index_name = os.getenv("PINECONE_INDEX_NAME", "mediguard-policies")
-            
             if not api_key:
                 raise ValueError("PINECONE_API_KEY not found in environment variables")
-            
-            # Initialize Pinecone
-            pinecone.init(api_key=api_key, environment=environment)
-            
-            # Get or create index
-            if index_name not in pinecone.list_indexes():
-                # Create index if it doesn't exist
-                dimension = self.embedding_generator.get_embedding_dimension()
-                pinecone.create_index(
+            index_name = os.getenv("PINECONE_INDEX_NAME", "mediguard-policies")
+            pc = Pinecone(api_key=api_key)
+            if not pc.has_index(index_name):
+                pc.create_index(
                     name=index_name,
-                    dimension=dimension,
-                    metric="cosine"
+                    dimension=self.embedding_generator.get_embedding_dimension(),
+                    metric="cosine",
+                    spec=ServerlessSpec(
+                        cloud=os.getenv("PINECONE_CLOUD", "aws"),
+                        region=os.getenv("PINECONE_REGION", os.getenv("PINECONE_ENVIRONMENT", "us-east-1")),
+                    ),
                 )
-            
-            self.index = pinecone.Index(index_name)
+            self.index = pc.Index(index_name)
             self.index_name = index_name
-            
-        except ImportError:
-            raise ImportError("pinecone not installed. Install with: pip install pinecone")
         except Exception as e:
             print(f"Warning: Could not initialize Pinecone: {e}")
             print("Falling back to in-memory storage for demonstration.")
@@ -82,7 +81,8 @@ class VectorStore:
             self._initialize_memory_store()
             
         except ImportError:
-            raise ImportError("pymilvus not installed. Install with: pip install pymilvus")
+            print("Warning: pymilvus not installed (pip install pymilvus). Using in-memory storage.")
+            self._initialize_memory_store()
         except Exception as e:
             print(f"Warning: Could not initialize Milvus: {e}")
             print("Falling back to in-memory storage for demonstration.")
@@ -105,7 +105,8 @@ class VectorStore:
         
         if self.provider == "pinecone" and self.index:
             # Add to Pinecone
-            self.index.upsert(vectors=[(policy_id, embedding, metadata or {})])
+            # Pinecone stores metadata only, so keep the policy text there for retrieval.
+            self.index.upsert(vectors=[(policy_id, embedding, {**(metadata or {}), "text": policy_text})])
         elif self.provider == "memory":
             # Add to memory store
             self.memory_store.append({
@@ -134,14 +135,20 @@ class VectorStore:
                 top_k=top_k,
                 include_metadata=True
             )
-            return [
-                {
-                    "id": match["id"],
-                    "score": match["score"],
-                    "metadata": match.get("metadata", {})
-                }
-                for match in results.get("matches", [])
-            ]
+            matches = getattr(results, "matches", None)
+            if matches is None:
+                matches = results.get("matches", [])
+            out = []
+            for match in matches:
+                get = (lambda k: getattr(match, k, None)) if not isinstance(match, dict) else match.get
+                meta = dict(get("metadata") or {})
+                out.append({
+                    "id": get("id"),
+                    "score": get("score"),
+                    "text": meta.pop("text", ""),
+                    "metadata": meta,
+                })
+            return out
         elif self.provider == "memory":
             # Search memory store using cosine similarity
             import numpy as np
@@ -181,5 +188,17 @@ class VectorStore:
             for item in self.memory_store:
                 if item["id"] == policy_id:
                     return item["text"]
-        # For Pinecone, we'd need to store text separately or in metadata
+        if self.provider == "pinecone" and self.index:
+            fetched = self.index.fetch(ids=[policy_id])
+            vectors = getattr(fetched, "vectors", None) or {}
+            if policy_id in vectors:
+                return (vectors[policy_id].metadata or {}).get("text")
         return None
+
+    def count(self) -> int:
+        """Number of stored policies (best effort for remote stores)."""
+        if self.provider == "memory":
+            return len(self.memory_store)
+        if self.provider == "pinecone" and self.index:
+            return int(self.index.describe_index_stats().get("total_vector_count", 0))
+        return 0

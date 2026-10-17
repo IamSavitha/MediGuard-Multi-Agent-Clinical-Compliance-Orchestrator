@@ -2,119 +2,138 @@
 PHI (Personal Health Information) Detector and Redactor
 
 Detects and redacts PHI from documents to ensure HIPAA compliance.
+
+Rule-based detection of HIPAA Safe Harbor identifiers: names, dates, phone numbers, email
+addresses, SSNs, medical record / account / member numbers, payment card numbers and street
+addresses with ZIP codes. Numbers that belong to providers or claims (NPI, claim, tax ID, ...)
+are filtered out by context. Measured accuracy is in evaluation/RESULTS.md.
 """
 
 import re
 from typing import Dict, List, Any, Tuple
 
+_MONTH = (r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?|"
+          r"Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)")
+_STREET_SUFFIX = (r"(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Lane|Ln|Drive|Dr|Court|Ct|Way|"
+                  r"Place|Pl|Terrace|Ter|Circle|Cir|Parkway|Pkwy|Highway|Hwy)")
+_CAP_WORD = r"[A-Z][a-z]+(?:['-][A-Z]?[a-z]+)?"
+
 
 class PHIDetector:
     """Detects and redacts PHI from text documents."""
-    
-    # Common PHI patterns
-    PATTERNS = {
-        "ssn": r"\b\d{3}-\d{2}-\d{4}\b",
-        "ssn_no_dash": r"\b\d{9}\b",
-        "phone": r"\b\d{3}[-.]?\d{3}[-.]?\d{4}\b",
-        "email": r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b",
-        "date_of_birth": r"\b(0[1-9]|1[0-2])[/-](0[1-9]|[12][0-9]|3[01])[/-]\d{4}\b",
-        "medical_record_number": r"\bMRN[:\s]?\d{6,}\b",
-        "account_number": r"\bAccount[:\s]?\d{6,}\b",
-        "credit_card": r"\b\d{4}[-.\s]?\d{4}[-.\s]?\d{4}[-.\s]?\d{4}\b",
-    }
-    
-    # Common name patterns (basic - can be enhanced with NER)
-    # Patterns to detect patient names in various formats
-    NAME_PATTERNS = [
-        # Pattern 1: "Patient: John Doe" or "Name: Jane Smith"
-        r"\b(?:Patient|Name|DOB|Date of Birth)[: \t]+([A-Z][a-z]+(?:[ \t]+[A-Z][a-z]+)+)\b",
-        # Pattern 2: JSON-like format "patient_id": "John Doe" or "patient_name": "Jane Smith"
-        r"(?:patient_id|patient_name|name|patient)[\"\']?\s*[:=]\s*[\"\']?([A-Z][a-z]+(?:[ \t]+[A-Z][a-z]+)+)[\"\']?",
+
+    # Whole-match patterns: (output type, regex, flags)
+    PATTERNS = [
+        ("ssn", r"\b\d{3}-\d{2}-\d{4}\b", 0),
+        ("ssn", r"\b\d{9}\b", 0),  # undashed; context-filtered below
+        ("phone", r"(?<![\d-])(?:\+1[\s.-]?)?(?:\(\d{3}\)\s?\d{3}[-.\s]?\d{4}|\d{3}[-.\s]\d{3}[-.\s]\d{4}|\d{10})(?![\d-])", 0),
+        ("email", r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b", 0),
+        ("dates", r"\b(?:0?[1-9]|1[0-2])[/-](?:0?[1-9]|[12]\d|3[01])[/-](?:19|20)\d{2}\b", 0),
+        ("dates", r"\b(?:19|20)\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])\b", 0),
+        ("dates", rf"\b{_MONTH}\.?\s+\d{{1,2}}(?:st|nd|rd|th)?,?\s+(?:19|20)\d{{2}}\b", re.IGNORECASE),
+        ("credit_card", r"\b\d{4}[-.\s]?\d{4}[-.\s]?\d{4}[-.\s]?\d{4}\b", 0),
+        ("address", rf"\b\d{{1,5}}\s+(?:{_CAP_WORD}\.?\s+){{1,3}}{_STREET_SUFFIX}\b\.?", 0),
     ]
-    
+
+    # Label-anchored patterns: only capture group 1 is PHI.
+    LABELED_PATTERNS = [
+        ("medical_record_number", r"\b(?i:MRN|Medical\s+Record(?:\s+(?:Number|No\.?|#))?)\s*[:#-]?\s*(\d{5,12})\b"),
+        ("account_number", r"\b(?i:Account(?:\s+(?:Number|No\.?|#))?|Acct\.?)\s*[:#-]?\s*(\d{6,})\b"),
+        ("member_id", r"\b(?i:(?:Member|Subscriber|Beneficiary|Insurance|Policy\s*holder|Patient)\s*(?:ID|No\.?|Number|#))"
+                      r"\s*[:#-]?\s*([A-Z0-9][A-Z0-9-]{4,}\d)\b"),
+        ("address", r"\b[A-Z]{2}\s+(\d{5}(?:-\d{4})?)\b"),  # ZIP after a state code
+    ]
+
+    # Patterns whose group 1 is a person's name.
+    NAME_PATTERNS = [
+        # "Patient: John Doe", "Patient Name: ...", "Name: ...", "Re: ...", "From: ..."
+        rf"\b(?i:Patient(?:\s+Name)?|Name|Re|From|Insured|Member\s+Name|Subscriber\s+Name)[ \t]*:[ \t]*({_CAP_WORD}(?:[ \t]+{_CAP_WORD})+)\b",
+        # JSON-like: "patient_name": "Jane Smith"
+        rf"(?i:patient_id|patient_name|full_name|name|patient)[\"']?\s*[:=]\s*[\"']({_CAP_WORD}(?:[ \t]+{_CAP_WORD})+)[\"']",
+        # Free text lead-ins: "my patient, Jane Smith", "this is Jane Smith", "my name is Jane Smith"
+        rf"\b(?i:patient,?|this\s+is|my\s+name\s+is)\s+({_CAP_WORD}[ \t]+{_CAP_WORD})\b",
+    ]
+    # Honorifics for patients (provider titles such as "Dr." are not patient PHI).
+    HONORIFIC_PATTERN = rf"\b(?:Mr|Mrs|Ms|Miss|Mx)\.?[ \t]+({_CAP_WORD}(?:[ \t]+{_CAP_WORD})?)\b"
+
+    # Digits preceded by these labels identify providers, claims or orders, not the patient.
+    NON_PATIENT_CONTEXT = re.compile(
+        r"(?i)(?:\bNPI|\bclaim(?:[ _]?(?:id|no|number|#))?|\btax\s*id|\bTIN|\bEIN|\bgroup(?:\s*(?:no|number|#))?|"
+        r"\bpolicy(?:\s*(?:no|number|#))?|\bprior\s+auth\w*(?:\s+ref)?|\bref(?:erence)?|\bvisit|\border|\binvoice|"
+        r"\bconfirmation|\bCPT|\bICD(?:-10)?|\bDRG|\broom)\W{0,4}$"
+    )
+    NUMERIC_TYPES = {"ssn", "phone"}
+
     def __init__(self):
         """Initialize the PHI detector."""
         self.detected_phi = []
         self.redaction_map = {}
-    
+
+    def _non_patient_number(self, text: str, start: int) -> bool:
+        return bool(self.NON_PATIENT_CONTEXT.search(text[max(0, start - 24):start]))
+
     def detect_phi(self, text: str) -> Dict[str, Any]:
         """Detect all PHI in the text.
-        
+
         Args:
             text: Text to scan for PHI
-            
+
         Returns:
-            Dictionary containing detected PHI and statistics
+            Dictionary containing detected PHI (lists of {value, start, end}) and total_detections
         """
         detected = {
             "ssn": [],
             "phone": [],
             "email": [],
-            "date_of_birth": [],
+            "dates": [],
             "medical_record_number": [],
             "account_number": [],
+            "member_id": [],
             "credit_card": [],
+            "address": [],
             "names": [],
             "total_detections": 0
         }
-        
-        # Map pattern types to detected dict keys
-        # "ssn_no_dash" should map to "ssn"
-        type_mapping = {
-            "ssn": "ssn",
-            "ssn_no_dash": "ssn",  # Fix: map ssn_no_dash to ssn
-            "phone": "phone",
-            "email": "email",
-            "date_of_birth": "date_of_birth",
-            "medical_record_number": "medical_record_number",
-            "account_number": "account_number",
-            "credit_card": "credit_card",
-        }
-        
-        # Detect structured PHI
-        for phi_type, pattern in self.PATTERNS.items():
-            matches = re.finditer(pattern, text, re.IGNORECASE)
-            for match in matches:
-                # Use mapped type for detected dict
-                mapped_type = type_mapping.get(phi_type, phi_type)
-                detected[mapped_type].append({
-                    "value": match.group(),
-                    "start": match.start(),
-                    "end": match.end()
-                })
-                detected["total_detections"] += 1
-        
-        # Detect names (basic pattern matching)
-        # Track unique names to avoid double counting (normalized for comparison)
-        unique_names = set()
+        taken = []  # spans already claimed, so one string is not reported under two types
+
+        def add(kind, start, end):
+            if any(start < e and s < end for s, e in taken):
+                return
+            taken.append((start, end))
+            detected[kind].append({"value": text[start:end], "start": start, "end": end})
+            detected["total_detections"] += 1
+
+        # Label-anchored identifiers first: they are the most specific.
+        for kind, pattern in self.LABELED_PATTERNS:
+            for m in re.finditer(pattern, text):
+                add(kind, m.start(1), m.end(1))
+
+        for kind, pattern, flags in self.PATTERNS:
+            for m in re.finditer(pattern, text, flags):
+                if kind in self.NUMERIC_TYPES and self._non_patient_number(text, m.start()):
+                    continue
+                add(kind, m.start(), m.end())
+
+        # Names: find them via labels / lead-ins / honorifics, then redact every occurrence.
+        full_names, surnames = set(), set()
         for pattern in self.NAME_PATTERNS:
-            matches = re.finditer(pattern, text, re.IGNORECASE)
-            for match in matches:
-                if len(match.groups()) > 0:
-                    name = match.group(1).strip()
-                    # Reject names with newlines or other invalid characters
-                    if '\n' in name or '\r' in name:
-                        continue
-                    # Basic validation: names should be 2+ words, capitalized, no newlines
-                    name_parts = name.split()
-                    if len(name_parts) >= 2 and name[0].isupper() and all(part[0].isupper() for part in name_parts if part):
-                        # Normalize name for uniqueness check (case-insensitive, normalized whitespace)
-                        normalized_name = ' '.join(name_parts).strip()
-                        # Always add to detected list for redaction (redact all instances)
-                        detected["names"].append({
-                            "value": normalized_name,
-                            "start": match.start(1),
-                            "end": match.end(1)
-                        })
-                        # Only count unique name values to avoid double counting (case-insensitive)
-                        name_key = normalized_name.lower()
-                        if name_key not in unique_names:
-                            unique_names.add(name_key)
-                            detected["total_detections"] += 1
-        
+            for m in re.finditer(pattern, text):
+                name = " ".join(m.group(1).split())
+                if "\n" not in m.group(1):
+                    full_names.add(name)
+                    surnames.add(name.split()[-1])
+        for m in re.finditer(self.HONORIFIC_PATTERN, text):
+            full_names.add(" ".join(m.group(0).split()))
+        for name in sorted(full_names, key=len, reverse=True):
+            for m in re.finditer(r"\b" + r"\s+".join(map(re.escape, name.split())) + r"\b", text):
+                add("names", m.start(), m.end())
+        for surname in surnames:  # "Mr. Alvarez" after "Patient: Carlos Alvarez"
+            for m in re.finditer(rf"\b(?:Mr|Mrs|Ms|Miss|Mx)\.?[ \t]+{re.escape(surname)}\b", text):
+                add("names", m.start(), m.end())
+
         self.detected_phi = detected
         return detected
-    
+
     def redact_phi(self, text: str, replacement: str = "[REDACTED]") -> Tuple[str, Dict[str, Any]]:
         """Redact all detected PHI from text.
         
@@ -215,7 +234,7 @@ class PHIDetector:
             risk_level = "LOW"
         
         # Critical PHI types
-        critical_types = ["ssn", "credit_card", "medical_record_number"]
+        critical_types = ["ssn", "credit_card", "medical_record_number", "member_id"]
         has_critical = any(
             len(detected.get(phi_type, [])) > 0
             for phi_type in critical_types
