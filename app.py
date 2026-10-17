@@ -98,7 +98,9 @@ def initialize_orchestrator():
                         """)
                         return False
                 
-                st.session_state.orchestrator = MediGuardOrchestrator()
+                # Share one vector store between the UI (policy management) and the validator agent.
+                initialize_vector_store()
+                st.session_state.orchestrator = MediGuardOrchestrator(vector_store=st.session_state.vector_store)
                 return True
             except ImportError as e:
                 error_msg = str(e)
@@ -128,6 +130,10 @@ def initialize_vector_store():
         with st.spinner("Initializing vector store..."):
             try:
                 st.session_state.vector_store = VectorStore()
+                # An in-memory store starts empty: load the sample policies so RAG has context.
+                if st.session_state.vector_store.count() == 0:
+                    from mediaguard.rag.policy_loader import load_policy_dir
+                    load_policy_dir(st.session_state.vector_store)
                 return True
             except Exception as e:
                 st.warning(f"Vector store initialization warning: {e}")

@@ -1,0 +1,214 @@
+[
+  {
+    "policy_id": "POL-001",
+    "policy_name": "Standard Health Insurance Plan",
+    "deductible": 1000,
+    "annual_maximum": 50000,
+    "coverage_rules": [
+      {
+        "treatment_type": "MRI",
+        "coverage_percentage": 80,
+        "requires_prior_authorization": true,
+        "copay": 50
+      },
+      {
+        "treatment_type": "CT scan",
+        "coverage_percentage": 80,
+        "requires_prior_authorization": false,
+        "copay": 50
+      },
+      {
+        "treatment_type": "X-ray",
+        "coverage_percentage": 90,
+        "requires_prior_authorization": false,
+        "copay": 25
+      },
+      {
+        "treatment_type": "surgery",
+        "coverage_percentage": 70,
+        "requires_prior_authorization": true,
+        "copay": 200
+      },
+      {
+        "treatment_type": "consultation",
+        "coverage_percentage": 100,
+        "requires_prior_authorization": false,
+        "copay": 0
+      }
+    ],
+    "exclusions": [
+      "cosmetic surgery",
+      "acupuncture",
+      "dental cleaning",
+      "IVF"
+    ]
+  },
+  {
+    "policy_id": "POL-002",
+    "policy_name": "Premium Health Insurance Plan",
+    "deductible": 500,
+    "annual_maximum": 100000,
+    "coverage_rules": [
+      {
+        "treatment_type": "MRI",
+        "coverage_percentage": 90,
+        "requires_prior_authorization": false,
+        "copay": 25
+      },
+      {
+        "treatment_type": "CT scan",
+        "coverage_percentage": 90,
+        "requires_prior_authorization": false,
+        "copay": 25
+      },
+      {
+        "treatment_type": "surgery",
+        "coverage_percentage": 85,
+        "requires_prior_authorization": true,
+        "copay": 100
+      },
+      {
+        "treatment_type": "physical therapy",
+        "coverage_percentage": 80,
+        "requires_prior_authorization": false,
+        "copay": 20
+      }
+    ],
+    "exclusions": [
+      "cosmetic surgery",
+      "experimental gene therapy"
+    ]
+  },
+  {
+    "policy_id": "POL-003",
+    "policy_name": "Bronze Essential Plan",
+    "deductible": 6000,
+    "annual_maximum": 25000,
+    "coverage_rules": [
+      {
+        "treatment_type": "preventive visit",
+        "coverage_percentage": 100,
+        "requires_prior_authorization": false,
+        "copay": 0
+      },
+      {
+        "treatment_type": "X-ray",
+        "coverage_percentage": 60,
+        "requires_prior_authorization": false,
+        "copay": 40
+      },
+      {
+        "treatment_type": "emergency room visit",
+        "coverage_percentage": 60,
+        "requires_prior_authorization": false,
+        "copay": 350
+      }
+    ],
+    "exclusions": [
+      "MRI",
+      "physical therapy",
+      "chiropractic care",
+      "cosmetic surgery"
+    ]
+  },
+  {
+    "policy_id": "POL-004",
+    "policy_name": "Dental and Vision Plus",
+    "deductible": 50,
+    "annual_maximum": 2000,
+    "coverage_rules": [
+      {
+        "treatment_type": "dental cleaning",
+        "coverage_percentage": 100,
+        "requires_prior_authorization": false,
+        "copay": 0
+      },
+      {
+        "treatment_type": "root canal",
+        "coverage_percentage": 70,
+        "requires_prior_authorization": false,
+        "copay": 75
+      },
+      {
+        "treatment_type": "eye exam",
+        "coverage_percentage": 100,
+        "requires_prior_authorization": false,
+        "copay": 10
+      }
+    ],
+    "exclusions": [
+      "orthodontics for adults",
+      "LASIK",
+      "surgery",
+      "MRI"
+    ]
+  },
+  {
+    "policy_id": "POL-005",
+    "policy_name": "Behavioral Health Plan",
+    "deductible": 250,
+    "annual_maximum": 15000,
+    "coverage_rules": [
+      {
+        "treatment_type": "psychotherapy",
+        "coverage_percentage": 90,
+        "requires_prior_authorization": false,
+        "copay": 15
+      },
+      {
+        "treatment_type": "psychiatric evaluation",
+        "coverage_percentage": 90,
+        "requires_prior_authorization": false,
+        "copay": 15
+      },
+      {
+        "treatment_type": "inpatient psychiatric care",
+        "coverage_percentage": 70,
+        "requires_prior_authorization": true,
+        "copay": 250
+      }
+    ],
+    "exclusions": [
+      "marriage counseling",
+      "life coaching",
+      "MRI"
+    ]
+  },
+  {
+    "policy_id": "POL-006",
+    "policy_name": "Senior Advantage Plan",
+    "deductible": 0,
+    "annual_maximum": 75000,
+    "coverage_rules": [
+      {
+        "treatment_type": "consultation",
+        "coverage_percentage": 100,
+        "requires_prior_authorization": false,
+        "copay": 10
+      },
+      {
+        "treatment_type": "CT scan",
+        "coverage_percentage": 85,
+        "requires_prior_authorization": true,
+        "copay": 40
+      },
+      {
+        "treatment_type": "hearing aids",
+        "coverage_percentage": 50,
+        "requires_prior_authorization": false,
+        "copay": 0
+      },
+      {
+        "treatment_type": "cataract surgery",
+        "coverage_percentage": 80,
+        "requires_prior_authorization": true,
+        "copay": 150
+      }
+    ],
+    "exclusions": [
+      "cosmetic surgery",
+      "IVF",
+      "acupuncture"
+    ]
+  }
+]

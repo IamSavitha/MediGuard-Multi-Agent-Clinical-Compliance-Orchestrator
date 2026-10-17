@@ -1,0 +1,42 @@
+{"id": "cov-000", "policy_id": "POL-001", "plan_name": "Standard Health Insurance Plan", "treatment": "one IVF cycle", "treatment_type": "IVF", "claim_amount": 2500, "gold_covered": false}
+{"id": "cov-001", "policy_id": "POL-004", "plan_name": "Dental and Vision Plus", "treatment": "laparoscopic gallbladder surgery", "treatment_type": "surgery", "claim_amount": 2500, "gold_covered": false}
+{"id": "cov-002", "policy_id": "POL-004", "plan_name": "Dental and Vision Plus", "treatment": "root canal on a molar", "treatment_type": "root canal", "claim_amount": 450, "gold_covered": true}
+{"id": "cov-003", "policy_id": "POL-002", "plan_name": "Premium Health Insurance Plan", "treatment": "MRI of the lumbar spine", "treatment_type": "MRI", "claim_amount": 1200, "gold_covered": true}
+{"id": "cov-004", "policy_id": "POL-004", "plan_name": "Dental and Vision Plus", "treatment": "MRI of the lumbar spine", "treatment_type": "MRI", "claim_amount": 180, "gold_covered": false}
+{"id": "cov-005", "policy_id": "POL-003", "plan_name": "Bronze Essential Plan", "treatment": "emergency room visit for a laceration", "treatment_type": "emergency room visit", "claim_amount": 14500, "gold_covered": true}
+{"id": "cov-006", "policy_id": "POL-003", "plan_name": "Bronze Essential Plan", "treatment": "cosmetic rhinoplasty", "treatment_type": "cosmetic surgery", "claim_amount": 2500, "gold_covered": false}
+{"id": "cov-007", "policy_id": "POL-004", "plan_name": "Dental and Vision Plus", "treatment": "LASIK eye surgery", "treatment_type": "LASIK", "claim_amount": 450, "gold_covered": false}
+{"id": "cov-008", "policy_id": "POL-001", "plan_name": "Standard Health Insurance Plan", "treatment": "CT scan of the chest", "treatment_type": "CT scan", "claim_amount": 14500, "gold_covered": true}
+{"id": "cov-009", "policy_id": "POL-004", "plan_name": "Dental and Vision Plus", "treatment": "comprehensive eye exam", "treatment_type": "eye exam", "claim_amount": 2500, "gold_covered": true}
+{"id": "cov-010", "policy_id": "POL-005", "plan_name": "Behavioral Health Plan", "treatment": "initial psychiatric evaluation", "treatment_type": "psychiatric evaluation", "claim_amount": 6800, "gold_covered": true}
+{"id": "cov-011", "policy_id": "POL-001", "plan_name": "Standard Health Insurance Plan", "treatment": "X-ray of the left wrist", "treatment_type": "X-ray", "claim_amount": 2500, "gold_covered": true}
+{"id": "cov-012", "policy_id": "POL-006", "plan_name": "Senior Advantage Plan", "treatment": "cosmetic rhinoplasty", "treatment_type": "cosmetic surgery", "claim_amount": 14500, "gold_covered": false}
+{"id": "cov-013", "policy_id": "POL-001", "plan_name": "Standard Health Insurance Plan", "treatment": "routine dental cleaning", "treatment_type": "dental cleaning", "claim_amount": 180, "gold_covered": false}
+{"id": "cov-014", "policy_id": "POL-005", "plan_name": "Behavioral Health Plan", "treatment": "life coaching sessions", "treatment_type": "life coaching", "claim_amount": 180, "gold_covered": false}
+{"id": "cov-015", "policy_id": "POL-001", "plan_name": "Standard Health Insurance Plan", "treatment": "acupuncture for chronic pain", "treatment_type": "acupuncture", "claim_amount": 14500, "gold_covered": false}
+{"id": "cov-016", "policy_id": "POL-006", "plan_name": "Senior Advantage Plan", "treatment": "bilateral hearing aids", "treatment_type": "hearing aids", "claim_amount": 450, "gold_covered": true}
+{"id": "cov-017", "policy_id": "POL-003", "plan_name": "Bronze Essential Plan", "treatment": "chiropractic spinal adjustment", "treatment_type": "chiropractic care", "claim_amount": 180, "gold_covered": false}
+{"id": "cov-018", "policy_id": "POL-003", "plan_name": "Bronze Essential Plan", "treatment": "MRI of the lumbar spine", "treatment_type": "MRI", "claim_amount": 14500, "gold_covered": false}
+{"id": "cov-019", "policy_id": "POL-006", "plan_name": "Senior Advantage Plan", "treatment": "one IVF cycle", "treatment_type": "IVF", "claim_amount": 1200, "gold_covered": false}
+{"id": "cov-020", "policy_id": "POL-001", "plan_name": "Standard Health Insurance Plan", "treatment": "cosmetic rhinoplasty", "treatment_type": "cosmetic surgery", "claim_amount": 180, "gold_covered": false}
+{"id": "cov-021", "policy_id": "POL-005", "plan_name": "Behavioral Health Plan", "treatment": "weekly psychotherapy", "treatment_type": "psychotherapy", "claim_amount": 14500, "gold_covered": true}
+{"id": "cov-022", "policy_id": "POL-006", "plan_name": "Senior Advantage Plan", "treatment": "CT scan of the chest", "treatment_type": "CT scan", "claim_amount": 1200, "gold_covered": true}
+{"id": "cov-023", "policy_id": "POL-002", "plan_name": "Premium Health Insurance Plan", "treatment": "CT scan of the chest", "treatment_type": "CT scan", "claim_amount": 6800, "gold_covered": true}
+{"id": "cov-024", "policy_id": "POL-002", "plan_name": "Premium Health Insurance Plan", "treatment": "12 sessions of physical therapy", "treatment_type": "physical therapy", "claim_amount": 6800, "gold_covered": true}
+{"id": "cov-025", "policy_id": "POL-006", "plan_name": "Senior Advantage Plan", "treatment": "cataract surgery, right eye", "treatment_type": "cataract surgery", "claim_amount": 180, "gold_covered": true}
+{"id": "cov-026", "policy_id": "POL-001", "plan_name": "Standard Health Insurance Plan", "treatment": "laparoscopic gallbladder surgery", "treatment_type": "surgery", "claim_amount": 6800, "gold_covered": true}
+{"id": "cov-027", "policy_id": "POL-003", "plan_name": "Bronze Essential Plan", "treatment": "X-ray of the left wrist", "treatment_type": "X-ray", "claim_amount": 1200, "gold_covered": true}
+{"id": "cov-028", "policy_id": "POL-004", "plan_name": "Dental and Vision Plus", "treatment": "adult orthodontic braces", "treatment_type": "orthodontics for adults", "claim_amount": 14500, "gold_covered": false}
+{"id": "cov-029", "policy_id": "POL-005", "plan_name": "Behavioral Health Plan", "treatment": "5-day inpatient psychiatric care", "treatment_type": "inpatient psychiatric care", "claim_amount": 6800, "gold_covered": true}
+{"id": "cov-030", "policy_id": "POL-002", "plan_name": "Premium Health Insurance Plan", "treatment": "cosmetic rhinoplasty", "treatment_type": "cosmetic surgery", "claim_amount": 1200, "gold_covered": false}
+{"id": "cov-031", "policy_id": "POL-001", "plan_name": "Standard Health Insurance Plan", "treatment": "specialist consultation", "treatment_type": "consultation", "claim_amount": 180, "gold_covered": true}
+{"id": "cov-032", "policy_id": "POL-003", "plan_name": "Bronze Essential Plan", "treatment": "12 sessions of physical therapy", "treatment_type": "physical therapy", "claim_amount": 6800, "gold_covered": false}
+{"id": "cov-033", "policy_id": "POL-005", "plan_name": "Behavioral Health Plan", "treatment": "MRI of the lumbar spine", "treatment_type": "MRI", "claim_amount": 180, "gold_covered": false}
+{"id": "cov-034", "policy_id": "POL-005", "plan_name": "Behavioral Health Plan", "treatment": "marriage counseling sessions", "treatment_type": "marriage counseling", "claim_amount": 6800, "gold_covered": false}
+{"id": "cov-035", "policy_id": "POL-006", "plan_name": "Senior Advantage Plan", "treatment": "specialist consultation", "treatment_type": "consultation", "claim_amount": 2500, "gold_covered": true}
+{"id": "cov-036", "policy_id": "POL-002", "plan_name": "Premium Health Insurance Plan", "treatment": "laparoscopic gallbladder surgery", "treatment_type": "surgery", "claim_amount": 14500, "gold_covered": true}
+{"id": "cov-037", "policy_id": "POL-001", "plan_name": "Standard Health Insurance Plan", "treatment": "MRI of the lumbar spine", "treatment_type": "MRI", "claim_amount": 6800, "gold_covered": true}
+{"id": "cov-038", "policy_id": "POL-003", "plan_name": "Bronze Essential Plan", "treatment": "annual preventive visit", "treatment_type": "preventive visit", "claim_amount": 6800, "gold_covered": true}
+{"id": "cov-039", "policy_id": "POL-006", "plan_name": "Senior Advantage Plan", "treatment": "acupuncture for chronic pain", "treatment_type": "acupuncture", "claim_amount": 1200, "gold_covered": false}
+{"id": "cov-040", "policy_id": "POL-004", "plan_name": "Dental and Vision Plus", "treatment": "routine dental cleaning", "treatment_type": "dental cleaning", "claim_amount": 180, "gold_covered": true}
+{"id": "cov-041", "policy_id": "POL-002", "plan_name": "Premium Health Insurance Plan", "treatment": "experimental gene therapy infusion", "treatment_type": "experimental gene therapy", "claim_amount": 450, "gold_covered": false}
