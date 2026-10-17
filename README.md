@@ -1,5 +1,12 @@
 # MediGuard: Multi-Agent Clinical Compliance Orchestrator
 
+![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white)
+![LangGraph](https://img.shields.io/badge/LangGraph-1C3C3C?logo=langgraph&logoColor=white)
+![LangChain](https://img.shields.io/badge/LangChain-1C3C3C?logo=langchain&logoColor=white)
+![OpenAI](https://img.shields.io/badge/OpenAI-412991?logo=openai&logoColor=white)
+![Pinecone](https://img.shields.io/badge/Pinecone-000000?logo=pinecone&logoColor=white)
+![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?logo=streamlit&logoColor=white)
+
 A sophisticated multi-agent system that automates medical claim validation and clinical document compliance review using LLM orchestration, RAG, and Responsible AI principles.
 
 ## Project Overview
